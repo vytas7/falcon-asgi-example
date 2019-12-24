@@ -590,9 +590,157 @@ Now, subsequent access to ``/thumbnails`` should be cached, as indicated by the
    directly from ``aiofiles`` instances, and caching therefore does not work
    for them at the moment.
 
+If you wanted to catch up with the tutorial, the file tree at this point is
+available in this repository as ``asgilook_v0.0.2``.
+
+The project's structure should now look like this::
+
+  asgilook
+  ├── .venv
+  └── asgilook
+      ├── __init__.py
+      ├── app.py
+      ├── asgi.py
+      ├── cache.py
+      ├── config.py
+      ├── images.py
+      └── store.py
+
+
+Testing Our Application
+-----------------------
+
+So far, so good? We have only tested our application by sending a handful of
+requests manually. Have we tested all code paths? Have we covered typical user
+inputs to the application?
+
+Having a comprehensive test suite is vital not only for verifying that
+application is correctly behaving at the moment, but also limiting the amount
+of future regressions introduced into the codebase.
+
+In order to ease testing automation, it would be good to gather our
+dependencies that we installed as we went through the tutorial. Furthermore,
+many Python testing automation tools such as the popular Tox are best suited to
+test a Python package. Let's kill two birds with one stone and define a
+``setup.py`` (inside the first ``asgilook``) for our project:
+
+.. code:: python
+
+    #!/usr/bin/env python
+
+    from setuptools import setup, find_packages
+
+
+    description = 'ASGI version of the Falcon "Look" tutorial.'
+
+    requirements = [
+        'falcon @ git+https://github.com/kgriffs/falcon@asgi-final',
+        'aiofiles>=0.4.0',
+        'aioredis>=1.3.0',
+        'msgpack',
+        'Pillow>=6.0.0',
+    ]
+
+    extras_require = {
+        'dev': [
+            'httpie',
+            'uvicorn>=0.11.0',
+        ],
+        'test': [
+            'pytest',
+        ],
+    }
+
+    setup(
+        name='falcon_asgi_example',
+        version='0.0.3dev0',
+        description=description,
+        long_description=description,
+        url='https://github.com/vytas7/falcon-asgi-example',
+        author='Vytautas Liuolia',
+        author_email='vytautas.liuolia@gmail.com',
+        license='Apache v2',
+        classifiers=[
+            'Development Status :: 3 - Alpha',
+            'Intended Audience :: Developers',
+            'License :: OSI Approved :: Apache Software License',
+            'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8',
+        ],
+        keywords='falcon asgi async cache redis uvicorn',
+        packages=find_packages(exclude=['contrib', 'docs', 'test*']),
+        python_requires='>=3.7',
+        install_requires=requirements,
+        extras_require=extras_require,
+        package_data={},
+        data_files=[],
+    )
+
+We will also introduce a simplistic ``tox.ini``, invoking ``flake8`` checks as
+well as running ``pytest`` against our test suite::
+
+  [tox]
+  envlist = flake8, py37
+
+  [testenv:flake8]
+  basepython = python3.7
+  skip_install = true
+  deps =
+      flake8
+  commands =
+      flake8 setup.py asgilook/ tests/
+
+  [testenv]
+  deps =
+      .[test]
+
+  commands =
+      pytest tests/
+
+Wait... what test suite? Let's create a dummy test in ``tests/test_image.py``
+just to verify our test and packaging setup is working:
+
+.. code:: python
+
+    def test_setup():
+        pass
+
+If you don't already have ``tox`` around, install it in the current
+environment::
+
+  pip install tox
+
+And, let's run our tests::
+
+  tox
+
+  <...>
+
+  tests/test_images.py .                                             [100%]
+
+  =========================== 1 passed in 0.00s ============================
+  ________________________________ summary _________________________________
+    flake8: commands succeeded
+    py37: commands succeeded
+    congratulations :)
+
+Woohoo, success!
+
+In order to implement actual tests, we'll need to revise our dependencies and
+decide which abstraction level we are after:
+
+* Will we run a real Redis server?
+* Will we store "real" files or just provide a fixture for ``aiofiles``?
+* Will use mocks and monkey patching, or would we inject dependencies?
+
+There is no right and wrong here, as different testing strategies (or a
+combination thereof) have their own advantages in terms of test running time,
+how easy it is to implement new tests, how close tests are to the "real"
+service, and so on.
+
 
 Coming Up Soon
 --------------
 
-* Application testing
+* Our first actual test
 * Showcasing async hooks
