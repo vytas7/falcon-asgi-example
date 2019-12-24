@@ -224,7 +224,7 @@ We can now implement a basic async image store as:
 
 Here we store data using ``aiofiles``, and run ``Pillow`` image transformation
 functions in a threadpool executor, hoping that at least some of them release
-GIL during processing.
+the GIL during processing.
 
 
 Images Resource(s)
@@ -379,5 +379,201 @@ The application file layout should now look like::
       └── store.py
 
 In case you have any issues getting the things up and running, or just prefer
-editing files to copy-pasting them, the file tree above is available in this
-repository as ``asgilook_v0.0.1``.
+editing files to copy-pasting them, the file tree at this point of tutorial is
+available in this repository as ``asgilook_v0.0.1``.
+
+
+Dynamic Thumbnails
+------------------
+
+Let's pretend our image service customers want to render images in multiple
+resolutions, for instance, for ``srcset`` for responsive HTML images or other
+purposes.
+
+Let's add a new method ``Store.make_thumbnail()`` to perform scaling on the
+fly:
+
+.. code:: python
+
+    async def make_thumbnail(self, image, size):
+        async with aiofiles.open(image.path, 'rb') as img_file:
+            data = await img_file.read()
+
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self._resize, data, size)
+
+As well as an internal helper to run the ``Pillow`` thumbnail operation that
+is offloaded to a threadpool executor, again, in hoping that Pillow can release
+the GIL for some operations:
+
+.. code:: python
+
+    def _resize(self, data, size):
+        image = PIL.Image.open(io.BytesIO(data))
+        image.thumbnail(size)
+
+        resized = io.BytesIO()
+        image.save(resized, 'JPEG')
+        return resized.getvalue()
+
+The ``store.Image`` class can be extended to also return URIs to thumbnails:
+
+.. code:: python
+
+    def thumbnails(self):
+        def reductions(size, min_size):
+            width, height = size
+            factor = 2
+            while width // factor >= min_size and height // factor >= min_size:
+                yield (width // factor, height // factor)
+                factor *= 2
+
+        return [
+            f'/thumbnails/{self.image_id}/{width}x{height}.jpeg'
+            for width, height in reductions(
+                self.size, self.config.min_thumb_size)]
+
+Gluing everything together, such as adding a new route inside ``create_app``,
+is left as an exercise for the reader.
+
+The new ``thumbnails`` end-point should now render thumbnails on-the-fly::
+
+  http POST localhost:8000/images @/home/user/Pictures/test.png
+  HTTP/1.1 201 Created
+  content-length: 319
+  content-type: application/json
+  date: Tue, 24 Dec 2019 18:58:20 GMT
+  location: /images/f2375273-8049-4b10-b17e-8851db9ac7af.jpeg
+  server: uvicorn
+
+  {
+      "id": "f2375273-8049-4b10-b17e-8851db9ac7af",
+      "image": "/images/f2375273-8049-4b10-b17e-8851db9ac7af.jpeg",
+      "modified": "Tue, 24 Dec 2019 18:58:21 GMT",
+      "size": [
+          462,
+          462
+      ],
+      "thumbnails": [
+          "/thumbnails/f2375273-8049-4b10-b17e-8851db9ac7af/231x231.jpeg",
+          "/thumbnails/f2375273-8049-4b10-b17e-8851db9ac7af/115x115.jpeg"
+      ]
+  }
+
+
+  http localhost:8000/thumbnails/f2375273-8049-4b10-b17e-8851db9ac7af/115x115.jpeg
+  HTTP/1.1 200 OK
+  content-length: 2985
+  content-type: image/jpeg
+  date: Tue, 24 Dec 2019 19:00:14 GMT
+  server: uvicorn
+
+  +-----------------------------------------+
+  | NOTE: binary data not shown in terminal |
+  +-----------------------------------------+
+
+Again, we could also verify thumbnail URIs in the browser or image viewer that
+supports HTTP input.
+
+
+Caching Responses
+-----------------
+
+Although scaling thumbnails on-the-fly sounds cool and we also avoid many pesky
+small files littering our storage, it also consumes CPU resources, and we would
+soon find our application crumbling under load.
+
+Let's thus implement response caching in Redis, utilizing
+`aioredis <https://github.com/aio-libs/aioredis>`_ for async support::
+
+  pip install aioredis
+
+Our application will also need to access a Redis server. Apart from just
+installing Redis server on your machine, one could also:
+
+* Spin up Redis in Docker, eg::
+
+    docker run -p 6379:6379 redis
+
+* Considering Redis is installed on the machine, one could also try
+  `pifpaf <https://github.com/jd/pifpaf>`_ for spinning up Redis just
+  temporarily for ``uvicorn``::
+
+    pifpaf run redis -- uvicorn asgilook.asgi:app
+
+We are going to perform caching in Falcon Middleware. Again, note that all
+middleware methods must be asynchronous. A simple cache (``cache.py``) could
+look like:
+
+.. code:: python
+
+    class RedisCache:
+        PREFIX = 'asgilook:'
+        INVALIDATE_ON = frozenset({'DELETE', 'POST', 'PUT'})
+        CACHE_HEADER = 'X-ASGILook-Cache'
+        TTL = 3600
+
+        def __init__(self, config):
+            self.config = config
+
+            # TODO(vytas): create_redis_pool() is a coroutine, how to run that
+            # inside __init__()?
+            self.redis = None
+
+        async def create_pool(self):
+            self.redis = await self.config.create_redis_pool(
+                self.config.redis_host)
+
+        async def process_request(self, req, resp):
+            resp.context.cached = False
+
+            if req.method in self.INVALIDATE_ON:
+                return
+
+            if self.redis is None:
+                await self.create_pool()
+
+            key = f'{self.PREFIX}/{req.path}'
+            data = await self.redis.get(key)
+            if data is not None:
+                resp.complete = True
+                resp.context.cached = True
+                resp.data = data
+                resp.set_header(self.CACHE_HEADER, 'Hit')
+            else:
+                resp.set_header(self.CACHE_HEADER, 'Miss')
+
+        async def process_response(self, req, resp, resource, req_succeeded):
+            if not req_succeeded:
+                return
+
+            key = f'{self.PREFIX}/{req.path}'
+
+            if req.method in self.INVALIDATE_ON:
+                await self.redis.delete(key)
+            elif not resp.context.cached and resp.data:
+                await self.redis.set(key, resp.data, expire=self.TTL)
+
+Now, subsequent access to ``/thumbnails`` should be cached, as indicated by the
+``x-asgilook-cache`` header::
+
+  http localhost:8000/thumbnails/167308e4-e444-4ad9-88b2-c8751a4e37d4/115x115.jpeg
+  HTTP/1.1 200 OK
+  content-length: 2985
+  content-type: application/json
+  date: Tue, 24 Dec 2019 19:46:51 GMT
+  server: uvicorn
+  x-asgilook-cache: Hit
+
+  +-----------------------------------------+
+  | NOTE: binary data not shown in terminal |
+  +-----------------------------------------+
+
+.. note::
+   Note that ``/images`` resources are cached neither for the collection nor
+   for individual images as ``resp.data`` is unavailable in these cases:
+
+   * Individual images are streamed directly from ``aiofiles``.
+   * Image collection is set as ``resp.media``, which is not available as
+     ``resp.data``, which is different from the WSGI Falcon where ``resp.data``
+     is synthesized by serializing the provided media upon property access.

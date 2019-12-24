@@ -24,3 +24,15 @@ class Images:
         resp.location = image.uri
         resp.media = image.serialize()
         resp.status = falcon.HTTP_201
+
+
+class Thumbnails:
+
+    def __init__(self, store):
+        self.store = store
+
+    async def on_get(self, req, resp, image_id, width, height):
+        image = self.store.get(str(image_id))
+
+        resp.content_type = falcon.MEDIA_JPEG
+        resp.data = await self.store.make_thumbnail(image, (width, height))
