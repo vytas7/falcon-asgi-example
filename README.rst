@@ -54,7 +54,6 @@ Next, we'll need to install the Falcon branch for ASGI::
 An ASGI app skeleton (``app.py``) could look like:
 
 .. sourcecode:: python
-
    import falcon.asgi
 
    app = falcon.asgi.App()
@@ -64,8 +63,8 @@ Hosting Our App
 ---------------
 
 For running our application, we'll need an
-`ASGI https://asgi.readthedocs.io/en/latest/`_ server. Some of the popular
-choices include:
+`ASGI <https://asgi.readthedocs.io/>`_ server. Some of the popular choices
+include:
 
 * `Uvicorn <https://www.uvicorn.org/>`_
 * `Daphne <https://github.com/django/daphne/>`_
@@ -77,7 +76,7 @@ Let's pick the popular ``uvicorn`` for now::
   pip install uvicorn
 
 While at it, it might be handy to also install
-`HTTPie https://github.com/jakubroztocil/httpie`_ HTTP client::
+`HTTPie <https://github.com/jakubroztocil/httpie>`_ HTTP client::
 
   pip install httpie
 
@@ -100,4 +99,24 @@ Let's verify it works by trying to access the URL provided above by
   date: Tue, 24 Dec 2019 13:37:01 GMT
   server: uvicorn
 
-Woohoo, it works!
+Woohoo, it works!!!
+
+Well, sort of. Onwards to adding some real functionality!
+
+
+Images Resource
+---------------
+
+Since we are going to write and read image files, care needs to be taken of
+making file I/O non-blocking. We'll give ``aiofiles`` a try::
+
+  pip install aiofiles
+
+We'll also need some basic configuration telling where to store our images.
+
+In the ASGI flavour of Falcon, all responder methods, hooks and middleware
+methods must be awaitable coroutines. With that in mind, let's go on to
+implement the image collection resource:
+
+.. sourcecode:: python
+   # work in progress
