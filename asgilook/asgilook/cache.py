@@ -1,3 +1,6 @@
+import msgpack
+
+
 class RedisCache:
     PREFIX = 'asgilook:'
     INVALIDATE_ON = frozenset({'DELETE', 'POST', 'PUT'})
@@ -10,6 +13,15 @@ class RedisCache:
         # TODO(vytas): create_redis_pool() is a coroutine, how to run that
         # inside __init__()?
         self.redis = None
+
+    async def serialize_response(self, resp):
+        data = await resp.render_body()
+        return msgpack.packb([resp.content_type, data], use_bin_type=True)
+
+    def deserialize_response(self, resp, data):
+        resp.content_type, resp.data = msgpack.unpackb(data, raw=False)
+        resp.complete = True
+        resp.context.cached = True
 
     async def create_pool(self):
         self.redis = await self.config.create_redis_pool(
@@ -27,9 +39,7 @@ class RedisCache:
         key = f'{self.PREFIX}/{req.path}'
         data = await self.redis.get(key)
         if data is not None:
-            resp.complete = True
-            resp.context.cached = True
-            resp.data = data
+            self.deserialize_response(resp, data)
             resp.set_header(self.CACHE_HEADER, 'Hit')
         else:
             resp.set_header(self.CACHE_HEADER, 'Miss')
@@ -42,5 +52,6 @@ class RedisCache:
 
         if req.method in self.INVALIDATE_ON:
             await self.redis.delete(key)
-        elif not resp.context.cached and resp.data:
-            await self.redis.set(key, resp.data, expire=self.TTL)
+        elif not resp.context.cached:
+            data = await self.serialize_response(resp)
+            await self.redis.set(key, data, expire=self.TTL)

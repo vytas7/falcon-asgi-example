@@ -488,6 +488,11 @@ Let's thus implement response caching in Redis, utilizing
 
   pip install aioredis
 
+We will also need to serialize response data (the ``Content-Type`` header and
+the body in the first version); ``msgpack`` should do::
+
+  pip install msgpack
+
 Our application will also need to access a Redis server. Apart from just
 installing Redis server on your machine, one could also:
 
@@ -507,6 +512,9 @@ look like:
 
 .. code:: python
 
+    import msgpack
+
+
     class RedisCache:
         PREFIX = 'asgilook:'
         INVALIDATE_ON = frozenset({'DELETE', 'POST', 'PUT'})
@@ -519,6 +527,15 @@ look like:
             # TODO(vytas): create_redis_pool() is a coroutine, how to run that
             # inside __init__()?
             self.redis = None
+
+        async def serialize_response(self, resp):
+            data = await resp.render_body()
+            return msgpack.packb([resp.content_type, data], use_bin_type=True)
+
+        def deserialize_response(self, resp, data):
+            resp.content_type, resp.data = msgpack.unpackb(data, raw=False)
+            resp.complete = True
+            resp.context.cached = True
 
         async def create_pool(self):
             self.redis = await self.config.create_redis_pool(
@@ -536,9 +553,7 @@ look like:
             key = f'{self.PREFIX}/{req.path}'
             data = await self.redis.get(key)
             if data is not None:
-                resp.complete = True
-                resp.context.cached = True
-                resp.data = data
+                self.deserialize_response(resp, data)
                 resp.set_header(self.CACHE_HEADER, 'Hit')
             else:
                 resp.set_header(self.CACHE_HEADER, 'Miss')
@@ -551,8 +566,9 @@ look like:
 
             if req.method in self.INVALIDATE_ON:
                 await self.redis.delete(key)
-            elif not resp.context.cached and resp.data:
-                await self.redis.set(key, resp.data, expire=self.TTL)
+            elif not resp.context.cached:
+                data = await self.serialize_response(resp)
+                await self.redis.set(key, data, expire=self.TTL)
 
 Now, subsequent access to ``/thumbnails`` should be cached, as indicated by the
 ``x-asgilook-cache`` header::
@@ -560,7 +576,7 @@ Now, subsequent access to ``/thumbnails`` should be cached, as indicated by the
   http localhost:8000/thumbnails/167308e4-e444-4ad9-88b2-c8751a4e37d4/115x115.jpeg
   HTTP/1.1 200 OK
   content-length: 2985
-  content-type: application/json
+  content-type: image/jpeg
   date: Tue, 24 Dec 2019 19:46:51 GMT
   server: uvicorn
   x-asgilook-cache: Hit
@@ -570,10 +586,6 @@ Now, subsequent access to ``/thumbnails`` should be cached, as indicated by the
   +-----------------------------------------+
 
 .. note::
-   Note that ``/images`` resources are cached neither for the collection nor
-   for individual images as ``resp.data`` is unavailable in these cases:
-
-   * Individual images are streamed directly from ``aiofiles``.
-   * Image collection is set as ``resp.media``, which is not available as
-     ``resp.data``, which is different from the WSGI Falcon where ``resp.data``
-     is synthesized by serializing the provided media upon property access.
+   Left as another exercise for the reader: individual images are streamed
+   directly from ``aiofiles`` instances, and caching therefore does not work
+   for them at the moment.
