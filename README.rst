@@ -54,6 +54,7 @@ Next, we'll need to install the Falcon branch for ASGI::
 An ASGI app skeleton (``app.py``) could look like:
 
 .. code:: python
+
    import falcon.asgi
 
    app = falcon.asgi.App()
@@ -119,4 +120,5 @@ methods must be awaitable coroutines. With that in mind, let's go on to
 implement the image collection resource:
 
 .. code:: python
+
    # work in progress
