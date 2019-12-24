@@ -301,7 +301,7 @@ The ASGI application now resides in ``asgi.py``:
     app = create_app()
 
 
-Running the application is not too dissimilar to the previous command line::
+Running the application is not too dissimilar from the previous command line::
 
   uvicorn asgilook.asgi:app
 
@@ -365,3 +365,19 @@ Let's check the image collection now::
           ]
       }
   ]
+
+The application file layout should now look like::
+
+  asgilook
+  ├── .venv
+  └── asgilook
+      ├── __init__.py
+      ├── app.py
+      ├── asgi.py
+      ├── config.py
+      ├── images.py
+      └── store.py
+
+In case you have any issues getting the things up and running, or just prefer
+editing files to copy-pasting them, the file tree above is available in this
+repository as ``asgilook_v0.0.1``.
