@@ -5,12 +5,13 @@ from .images import Images
 from .store import Store
 
 
-def create_app():
-    config = Config()
+def create_app(config=None):
+    config = config or Config()
     store = Store(config)
-    images = Images(store)
+    images = Images(config, store)
 
     app = falcon.asgi.App()
     app.add_route('/images', images)
+    app.add_route('/images/{image_id:uuid}.jpeg', images, suffix='image')
 
     return app
