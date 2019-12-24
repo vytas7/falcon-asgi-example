@@ -589,3 +589,10 @@ Now, subsequent access to ``/thumbnails`` should be cached, as indicated by the
    Left as another exercise for the reader: individual images are streamed
    directly from ``aiofiles`` instances, and caching therefore does not work
    for them at the moment.
+
+
+Coming Up Soon
+--------------
+
+* Application testing
+* Showcasing async hooks
