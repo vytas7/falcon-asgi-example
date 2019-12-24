@@ -13,9 +13,9 @@ we'll be alpha-testing the upcoming
 Disclaimer
 ----------
 
-Needless to say, the showcased recipes are **not production ready** (yet) as
-this tutorial builds upon Falcon branches/PRs which are still undergoing heavy
-development.
+Needless to say, the recipes showcased below are **not production ready** (yet)
+as this tutorial builds upon Falcon branches/PRs which are still undergoing
+heavy development.
 
 
 First Steps
@@ -42,7 +42,62 @@ directory structure, along the lines of
      python3.7 -m venv .venv
 
    However, the way above may be unavailable depending how Python is packaged
-   and installed in our OS. FWIW, the
+   and installed in your OS. FWIW, the
    `author of this document <https://github.com/vytas7>`_ finds it convenient
    to manage *virtualenv*\s with
    `virtualenvwrapper <https://virtualenvwrapper.readthedocs.io>`_.
+
+Next, we'll need to install the Falcon branch for ASGI::
+
+  pip install git+https://github.com/kgriffs/falcon@asgi-final
+
+An ASGI app skeleton (``app.py``) could look like:
+
+.. sourcecode:: python
+
+   import falcon.asgi
+
+   app = falcon.asgi.App()
+
+
+Hosting Our App
+---------------
+
+For running our application, we'll need an
+`ASGI https://asgi.readthedocs.io/en/latest/`_ server. Some of the popular
+choices include:
+
+* `Uvicorn <https://www.uvicorn.org/>`_
+* `Daphne <https://github.com/django/daphne/>`_
+* `Hypercorn <https://pgjones.gitlab.io/hypercorn/>`_
+
+For a simple tutorial application like ours, any of the above should do.
+Let's pick the popular ``uvicorn`` for now::
+
+  pip install uvicorn
+
+While at it, it might be handy to also install
+`HTTPie https://github.com/jakubroztocil/httpie`_ HTTP client::
+
+  pip install httpie
+
+
+Now let's try loading our application::
+
+  uvicorn asgilook.app:app
+  INFO:     Started server process [2019]
+  INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+  INFO:     Waiting for application startup.
+  INFO:     Application startup complete.
+
+Let's verify it works by trying to access the URL provided above by
+``uvicorn``::
+
+  http http://127.0.0.1:8000
+  HTTP/1.1 404 Not Found
+  content-length: 0
+  content-type: application/json
+  date: Tue, 24 Dec 2019 13:37:01 GMT
+  server: uvicorn
+
+Woohoo, it works!
