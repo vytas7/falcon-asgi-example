@@ -21,6 +21,7 @@ extras_require = {
     'test': [
         'birdisle',
         'pytest',
+        'pytest-cov',
     ],
 }
 

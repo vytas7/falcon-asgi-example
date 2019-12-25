@@ -15,7 +15,7 @@ class Config:
         self.storage_path = (os.environ.get('ASGI_LOOK_STORAGE_PATH')
                              or self.DEFAULT_CONFIG_PATH)
         if not os.path.exists(self.storage_path):
-            os.makedirs(self.storage_path)
+            os.makedirs(self.storage_path)  # pragma: nocover
 
         self.create_redis_pool = Config.DEFAULT_REDIS_POOL
         self.min_thumb_size = self.DEFAULT_MIN_THUMB_SIZE

@@ -827,12 +827,34 @@ with dependency resolution, and try again in a fresh test environment::
 
   tox --recreate
 
-Wohoo! Looking better now.
+Woohoo! Looking better now.
 
 An exercise for the reader: expand our first test to make sure subsequent
 access to ``/images`` is cached by checking the ``X-ASGILook-Cache``
 header. To verify, run ``tox`` again!
 
+
+Code Coverage
+-------------
+
+How much of our ``asgilook`` code is covered by these tests?
+
+And easy way to get the coverage report is using the ``pytest-cov``
+plugin. Adding it to our test requirements and ``tox.ini`` should do the
+trick. The end of ``tox.ini`` should now read::
+
+  commands =
+      pytest --cov=asgilook tests/
+
+  [coverage:run]
+  omit =
+      asgilook/asgi.py
+
+.. note::
+   The ``pytest-cov`` plugin is quite simplistic; for more advanced testing
+   strategies such as combining different type of tests and/or running the same
+   tests in multiple environments would most probably involve running
+   ``coverage`` directly, and combining results.
 
 Coming Up Soon
 --------------
