@@ -833,6 +833,19 @@ An exercise for the reader: expand our first test to make sure subsequent
 access to ``/images`` is cached by checking the ``X-ASGILook-Cache``
 header. To verify, run ``tox`` again!
 
+We need to more tests now!
+
+Feel free to try writing some yourself. Otherwise, check out ``asgilook/tests``
+in this repository.
+
+Writing tests may also help to find erroneous application behaviour that was
+missed by manual testing. For instance, we noticed that routes accepting an
+``image_id:uuid`` parameter were exploding with a 500 if the provided
+``image_id`` was not found in the store. That is now fixed.
+
+Furthermore, we have realized that thumbnail resolutions are not validated
+against what we are exposing in the API. That is now also fixed.
+
 
 Code Coverage
 -------------
@@ -844,22 +857,47 @@ plugin. Adding it to our test requirements and ``tox.ini`` should do the
 trick. The end of ``tox.ini`` should now read::
 
   commands =
-      pytest --cov=asgilook tests/
+      pytest --cov=asgilook --cov-report=term-missing tests/
 
   [coverage:run]
   omit =
       asgilook/asgi.py
 
+Oh, wow! We do happen to have full line coverage.
+
+We could turn this fact into a future requirement by specifying
+``--cov-fail-under=100`` in our Tox command.
+
 .. note::
-   The ``pytest-cov`` plugin is quite simplistic; for more advanced testing
+   The ``pytest-cov`` plugin is quite simplistic; more advanced testing
    strategies such as combining different type of tests and/or running the same
    tests in multiple environments would most probably involve running
    ``coverage`` directly, and combining results.
 
+
 Coming Up Soon
 --------------
 
-* Showcasing async hooks
+* Showcasing async hooks.
+
+
+What Now?
+---------
+
+Our first Falcon+ASGI application could be improved in numerous ways:
+
+* Make image store persistent and reusable across worker processes.
+  Maybe by using a database?
+* Improve error handling for malformed images.
+* Check how and when Pillow releases the GIL, and tune what is offloaded to a
+  threadpool executor.
+* Test `Pillow-SIMD <https://pypi.org/project/Pillow-SIMD/>`_ to boost
+  performance.
+* In addition to line coverage, check branch coverage.
+* ...And much more (patches welcome as they say)!
+
+Also, stay tuned to our progress towards Falcon 3.0!
+https://gist.github.com/kgriffs/a719c84aa33069d8dcf98b925135da39
 
 
 .. |Build Status| image:: https://api.travis-ci.org/vytas7/falcon-asgi-example.svg

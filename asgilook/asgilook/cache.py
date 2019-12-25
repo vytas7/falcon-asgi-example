@@ -30,11 +30,11 @@ class RedisCache:
     async def process_request(self, req, resp):
         resp.context.cached = False
 
-        if req.method in self.INVALIDATE_ON:
-            return
-
         if self.redis is None:
             await self.create_pool()
+
+        if req.method in self.INVALIDATE_ON:
+            return
 
         key = f'{self.PREFIX}/{req.path}'
         data = await self.redis.get(key)
