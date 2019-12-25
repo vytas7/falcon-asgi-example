@@ -931,6 +931,7 @@ You can find the current status of our ``asgilook`` in this repository.
 The current file tree should look like::
 
   asgilook
+  ├── .venv
   ├── asgilook
   │   ├── __init__.py
   │   ├── app.py
@@ -939,7 +940,7 @@ The current file tree should look like::
   │   ├── config.py
   │   ├── images.py
   │   └── store.py
-  ├─ tests
+  ├── tests
   │   ├── __init__.py
   │   ├── conftest.py
   │   ├── test_images.py
