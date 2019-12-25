@@ -927,6 +927,26 @@ Redis pool if we've already got one:
 
 Phew, that gets the job done! The tests pass again.
 
+You can find the current status of our ``asgilook`` in this repository.
+The current file tree should look like::
+
+  asgilook
+  ├── asgilook
+  │   ├── __init__.py
+  │   ├── app.py
+  │   ├── asgi.py
+  │   ├── cache.py
+  │   ├── config.py
+  │   ├── images.py
+  │   └── store.py
+  ├─ tests
+  │   ├── __init__.py
+  │   ├── conftest.py
+  │   ├── test_images.py
+  │   └── test_thumbnails.py
+  ├── setup.py
+  └── tox.ini
+
 
 What Now?
 ---------
