@@ -957,6 +957,7 @@ interface, as well as tested a fair bit along the way.
 
 A few things still left to try:
 
+* Asynchronous error handlers.
 * Iterating request stream messages directly (as opposed to the synthesized
   ``read()`` we have used to get the uploaded image data in this tutorial).
 * Decorating responders with async hooks.
