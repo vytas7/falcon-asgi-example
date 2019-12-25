@@ -875,14 +875,73 @@ We could turn this fact into a future requirement by specifying
    ``coverage`` directly, and combining results.
 
 
-Coming Up Soon
---------------
+ASGI Application Lifespan
+-------------------------
 
-* Showcasing async hooks.
+Remember the issue with the ``create_redis_pool()`` coroutine being unsuitable
+for the resource ``__init__.py``?
+
+An ASGI application server emits lifespan events such as application startup
+and shutdown. Could we instead initialize the Redis pool upon startup? Let's
+add the ``process_startup`` event to our Redis cache middleware:
+
+.. code:: python
+
+    async def process_startup(self, scope, event):
+        self.redis = await self.config.create_redis_pool(
+            self.config.redis_host)
+
+We can also remove the related machinery to check for its value, and register
+the cache component in ``create_app()``:
+
+.. code:: python
+
+    # <...>
+
+    app = falcon.asgi.App(middleware=[cache])
+    app.add_lifespan_handler(cache)
+    app.add_route('/images', images)
+    app.add_route('/images/{image_id:uuid}.jpeg', images, suffix='image')
+    app.add_route('/thumbnails/{image_id:uuid}/{width:int}x{height:int}.jpeg',
+                  thumbnails)
+
+Is it OK for a middleware component to double as a lifespan handler? Well, we
+could at least try. Let's spin up ``uvicorn`` again... Wow, it seems to work as
+expected!
+
+We just need to check that the tests still work::
+
+  tox
+
+Ouch. Two tests asserting cache hits now report "Miss" instead... This seems to
+happen because every simulated request is apparently run inside a separate
+application lifecycle. Let's tweak our cache initialization not to create a new
+Redis pool if we've already got one:
+
+.. code:: python
+
+    async def process_startup(self, scope, event):
+        if self.redis is None:
+            self.redis = await self.config.create_redis_pool(
+                self.config.redis_host)
+
+Phew, that gets the job done! The tests pass again.
 
 
 What Now?
 ---------
+
+We have now hopefully got a better feeling of the upcoming Falcon ASGI
+interface, as well as tested a fair bit along the way.
+
+A few things still left to try:
+
+* Iterating request stream messages directly (as opposed to the synthesized
+  ``read()`` we have used to get the uploaded image data in this tutorial).
+* Decorating responders with async hooks.
+* Define and use custom async media handlers (tested separately by the author,
+  but not presented in this tutorial yet).
+* SSE events.
 
 Our first Falcon+ASGI application could be improved in numerous ways:
 

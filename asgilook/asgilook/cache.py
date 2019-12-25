@@ -10,9 +10,14 @@ class RedisCache:
     def __init__(self, config):
         self.config = config
 
-        # TODO(vytas): create_redis_pool() is a coroutine, how to run that
-        # inside __init__()?
+        # NOTE(vytas): To be initialized upon application startup (see the
+        #   method below).
         self.redis = None
+
+    async def process_startup(self, scope, event):
+        if self.redis is None:
+            self.redis = await self.config.create_redis_pool(
+                self.config.redis_host)
 
     async def serialize_response(self, resp):
         data = await resp.render_body()
@@ -23,15 +28,8 @@ class RedisCache:
         resp.complete = True
         resp.context.cached = True
 
-    async def create_pool(self):
-        self.redis = await self.config.create_redis_pool(
-            self.config.redis_host)
-
     async def process_request(self, req, resp):
         resp.context.cached = False
-
-        if self.redis is None:
-            await self.create_pool()
 
         if req.method in self.INVALIDATE_ON:
             return
