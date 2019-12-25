@@ -8,7 +8,7 @@ description = 'ASGI version of the Falcon "Look" tutorial.'
 requirements = [
     'falcon @ git+https://github.com/kgriffs/falcon@asgi-final',
     'aiofiles>=0.4.0',
-    'aioredis>=1.3.0',
+    'aioredis>=1.2.0',
     'msgpack',
     'Pillow>=6.0.0',
 ]

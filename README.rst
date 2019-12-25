@@ -693,7 +693,6 @@ well as running ``pytest`` against our test suite::
   [testenv]
   deps =
       .[test]
-
   commands =
       pytest tests/
 
@@ -731,16 +730,109 @@ decide which abstraction level we are after:
 
 * Will we run a real Redis server?
 * Will we store "real" files or just provide a fixture for ``aiofiles``?
-* Will use mocks and monkey patching, or would we inject dependencies?
+* Will we use mocks and monkey patching, or would we inject dependencies?
 
 There is no right and wrong here, as different testing strategies (or a
 combination thereof) have their own advantages in terms of test running time,
 how easy it is to implement new tests, how close tests are to the "real"
 service, and so on.
 
+In order to deliver something working faster, let's allow our tests to access
+the real filesystem. We'll leverage the ``ASGI_LOOK_STORAGE_PATH`` envvar in
+``config.py`` to override the storage location to Tox's
+`envtmpdir <https://tox.readthedocs.io/en/latest/config.html#conf-envtmpdir>`_.
+
+We'll try to avoid running a real Redis server for now by trying out
+`Bruce Merry's birdisle <https://github.com/bmerry/birdisle>`_. It builds upon
+the Redis codebase, so we should hopefully stay as close to the real Redis as
+possible without needing to spin up any servers. We'll include ``birdisle`` in
+our test dependencies:
+
+.. code:: python
+
+    extras_require = {
+        'dev': [
+            'httpie',
+            'uvicorn>=0.11.0',
+        ],
+        'test': [
+            'birdisle',
+            'pytest',
+        ],
+    }
+
+Let's write fixtures to replace ``uuid`` and ``aioredis``, and inject them into
+our tests via ``conftest.py``:
+
+.. code:: python
+
+    import uuid
+
+    import birdisle.aioredis
+    import falcon.asgi
+    import falcon.testing
+    import pytest
+
+    from asgilook.app import create_app
+    from asgilook.config import Config
+
+
+    @pytest.fixture()
+    def predictable_uuid():
+        fixtures = (
+            uuid.UUID('36562622-48e5-4a61-be67-e426b11821ed'),
+            uuid.UUID('3bc731ac-8cd8-4f39-b6fe-1a195d3b4e74'),
+            uuid.UUID('ba1c4951-73bc-45a4-a1f6-aa2b958dafa4'),
+        )
+
+        def uuid_func():
+            try:
+                return next(fixtures_it)
+            except StopIteration:
+                return uuid.uuid4()
+
+        fixtures_it = iter(fixtures)
+        return uuid_func
+
+
+    @pytest.fixture
+    def client(predictable_uuid):
+        config = Config()
+        config.create_redis_pool = birdisle.aioredis.create_redis_pool
+        config.uuid_generator = predictable_uuid
+
+        app = create_app(config)
+        return falcon.testing.TestClient(app)
+
+``tests/test_images.py`` will now attempt to access our ``/images`` end-point:
+
+.. code:: python
+
+    def test_list_images(client):
+        resp = client.simulate_get('/images')
+
+        assert resp.status_code == 200
+        assert resp.json == []
+
+The moment of truth::
+
+  tox
+
+Ouch, that did not work. Looking closer at the ``birdisle.aioredis`` source
+code, it seems that it requires exactly ``aioredis==1.2.0`` (not the latest
+version). Let's try pinning to this version in our ``tox.ini`` in order aid Pip
+with dependency resolution, and try again in a fresh test environment::
+
+  tox --recreate
+
+Wohoo! Looking better now.
+
+An exercise for the reader: expand our first test to make sure subsequent
+access to ``/images`` is cached by checking the ``X-ASGILook-Cache``
+header. To verify, run ``tox`` again!
+
 
 Coming Up Soon
 --------------
 
-* Our first actual test
 * Showcasing async hooks
