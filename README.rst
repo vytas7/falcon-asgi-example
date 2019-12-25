@@ -1,3 +1,5 @@
+|Build Status|
+
 Falcon ASGI Tutorial
 ====================
 
@@ -836,3 +838,7 @@ Coming Up Soon
 --------------
 
 * Showcasing async hooks
+
+
+.. |Build Status| image:: https://api.travis-ci.org/vytas7/falcon-asgi-example.svg
+   :target: https://travis-ci.org/vytas7/falcon-asgi-example
