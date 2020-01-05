@@ -882,8 +882,9 @@ Remember the issue with the ``create_redis_pool()`` coroutine being unsuitable
 for the resource ``__init__.py``?
 
 An ASGI application server emits lifespan events such as application startup
-and shutdown. Could we instead initialize the Redis pool upon startup? Let's
-add the ``process_startup`` event to our Redis cache middleware:
+and shutdown. Could we instead initialize the Redis pool upon startup?
+
+Let's implement the ``process_startup`` handler in our Redis cache middleware:
 
 .. code:: python
 
@@ -891,23 +892,8 @@ add the ``process_startup`` event to our Redis cache middleware:
         self.redis = await self.config.create_redis_pool(
             self.config.redis_host)
 
-We can also remove the related machinery to check for its value, and register
-the cache component in ``create_app()``:
-
-.. code:: python
-
-    # <...>
-
-    app = falcon.asgi.App(middleware=[cache])
-    app.add_lifespan_handler(cache)
-    app.add_route('/images', images)
-    app.add_route('/images/{image_id:uuid}.jpeg', images, suffix='image')
-    app.add_route('/thumbnails/{image_id:uuid}/{width:int}x{height:int}.jpeg',
-                  thumbnails)
-
-Is it OK for a middleware component to double as a lifespan handler? Well, we
-could at least try. Let's spin up ``uvicorn`` again... Wow, it seems to work as
-expected!
+We can now also remove the related machinery to check for its value in the
+``process_request`` and ``process_response`` handlers.
 
 We just need to check that the tests still work::
 
