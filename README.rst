@@ -16,8 +16,8 @@ Disclaimer
 ----------
 
 Needless to say, the recipes showcased below are **not production ready** (yet)
-as this tutorial builds upon Falcon branches/PRs which are still undergoing
-heavy development.
+as this tutorial builds upon the Falcon master branch which is still undergoing
+heavy development for the upcoming alpha release.
 
 
 First Steps
@@ -49,9 +49,9 @@ directory structure, along the lines of
    to manage *virtualenv*\s with
    `virtualenvwrapper <https://virtualenvwrapper.readthedocs.io>`_.
 
-Next, we'll need to install the Falcon branch for ASGI::
+Next, we'll need to install the Falcon master branch::
 
-  pip install git+https://github.com/kgriffs/falcon@asgi-final
+  pip install git+https://github.com/falconry/falcon
 
 An ASGI app skeleton (``app.py``) could look like:
 
@@ -636,7 +636,7 @@ test a Python package. Let's kill two birds with one stone and define a
     description = 'ASGI version of the Falcon "Look" tutorial.'
 
     requirements = [
-        'falcon @ git+https://github.com/kgriffs/falcon@asgi-final',
+        'falcon @ git+https://github.com/falconry/falcon',
         'aiofiles>=0.4.0',
         'aioredis>=1.3.0',
         'msgpack',

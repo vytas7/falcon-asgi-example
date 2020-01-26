@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 description = 'ASGI version of the Falcon "Look" tutorial.'
 
 requirements = [
-    'falcon @ git+https://github.com/kgriffs/falcon@asgi-final',
+    'falcon @ git+https://github.com/falconry/falcon',
     'aiofiles>=0.4.0',
     'aioredis>=1.2.0',
     'msgpack',
