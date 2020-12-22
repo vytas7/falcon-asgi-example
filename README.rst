@@ -1,7 +1,7 @@
 ARCHIVED
 ========
 
-**Update (2020-12-22)**. This tutorial has now been integrated with to the Falcon codebase.
+**Update (2020-12-22)**. This tutorial has now been integrated with the Falcon codebase.
 
 See the latest version at: https://falcon.readthedocs.io/en/latest/user/tutorial-asgi.html
 
